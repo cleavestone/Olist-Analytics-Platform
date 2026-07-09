@@ -57,6 +57,21 @@ services:
         condition: service_healthy
     profiles: ["manual"]
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: olist_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@olist.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      warehouse_db:
+        condition: service_healthy
+
 volumes:
   api_db_data:
   warehouse_db_data:
+  pgadmin_data:
