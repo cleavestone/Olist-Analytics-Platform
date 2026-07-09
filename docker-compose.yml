@@ -1,0 +1,62 @@
+services:
+  api_db:
+    image: postgres:16
+    container_name: olist_api_db
+    environment:
+      POSTGRES_USER: olist_api
+      POSTGRES_PASSWORD: olist_api
+      POSTGRES_DB: olist_api
+    ports:
+      - "5433:5432"
+    volumes:
+      - api_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U olist_api -d olist_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    container_name: olist_source_api
+    environment:
+      DATABASE_URL: postgresql://olist_api:olist_api@api_db:5432/olist_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      api_db:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - /app/.venv
+
+  warehouse_db:
+    image: postgres:16
+    container_name: olist_warehouse_db
+    environment:
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+      POSTGRES_DB: olist_warehouse
+    ports:
+      - "5434:5432"
+    volumes:
+      - warehouse_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse -d olist_warehouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dlt_pipeline:
+    build: ./dlt_pipeline
+    container_name: olist_dlt_pipeline
+    depends_on:
+      api:
+        condition: service_started
+      warehouse_db:
+        condition: service_healthy
+    profiles: ["manual"]
+
+volumes:
+  api_db_data:
+  warehouse_db_data:
