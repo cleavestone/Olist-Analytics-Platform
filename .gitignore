@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+
+# dlt
+.dlt/secrets.toml
+
+# dbt
+dbt_project/olist_analytics/target/
+dbt_project/olist_analytics/dbt_packages/
+dbt_project/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (raw CSVs are large — keep them local)
+api/data/raw/*.csv
