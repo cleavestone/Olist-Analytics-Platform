@@ -1,347 +1,155 @@
+# Olist ELT Platform
 
-# Olist ELT Analytics Platform
+A modern ELT platform built around the [Olist Brazilian E-commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce). Simulates a production source system with realistic data arrival patterns and processes it through a complete analytics pipeline.
 
-An end-to-end analytics engineering portfolio project that simulates a real-world ELT pipeline from source system to analytics-ready warehouse.
-
-The project features a **self-built FastAPI source API**, incremental ingestion with **dlt**, transformations with **dbt-core** using a **Medallion Architecture (Bronze → Silver → Gold)**, a proper **star schema**, **Slowly Changing Dimensions (SCD Type 2)**, and **incremental fact tables**. The remaining phases include orchestration with **Kestra** and business intelligence with **Apache Superset**.
-
-Built entirely with **open-source technologies**—no cloud infrastructure or billing required.
-
----
-
-# Why This Project Exists
-
-Most portfolio ELT projects simply load static CSV files into a warehouse and perform transformations.
-
-This project simulates a **real production source system**, requiring the ingestion layer to solve realistic engineering challenges instead of performing a one-time data load.
-
-The source system provides:
-
-- Cursor-based pagination
-- Incremental extraction using `updated_at`
-- Background data releases (drip-feed)
-- Late-arriving records
-
-This means the ingestion pipeline must correctly handle:
-
-- Incremental loading
-- Pagination
-- Merge-based upserts
-- Late-arriving data
-- Idempotent pipeline execution
-
----
-
-# Architecture
+## Architecture
 
 ```text
-                   Olist Dataset (Kaggle)
-                            │
-                            ▼
-               FastAPI Source API (api/)
-               ─────────────────────────
-               • PostgreSQL (api_db)
-               • Cursor pagination
-               • updated_at filtering
-               • Background drip-feed
-                            │
-                            ▼
-              dlt Incremental Pipeline
-              ─────────────────────────
-              • Incremental extraction
-              • Merge write disposition
-              • Primary key upserts
-                            │
-                            ▼
-          PostgreSQL Warehouse (Bronze)
-          ─────────────────────────────
-          Raw source tables (1:1)
-                            │
-                            ▼
-                 dbt-core Transformations
-                 ────────────────────────
-
-                Bronze
-                   │
-                   ▼
-                Silver
-        • Staging models
-        • Data cleaning
-        • Type casting
-        • Tests
-        • SCD Type 2 snapshots
-                   │
-                   ▼
-                 Gold
-        • Star schema
-        • Dimension tables
-        • Incremental fact tables
-                   │
-                   ▼
-          Kestra (Planned)
-        Pipeline orchestration
-                   │
-                   ▼
-      Apache Superset (Planned)
-       Analytics & Dashboards
+                    Olist Dataset (Kaggle)
+                             |
+                             ▼
+                FastAPI Source API (api/)
+                • PostgreSQL (api_db)
+                • Cursor-based pagination
+                • Incremental filtering
+                • Background drip-feed releases
+                             |
+                             ▼
+                   dlt Incremental Pipeline
+                   • Cursor-based extraction
+                   • Incremental loading
+                   • Merge write disposition
+                             |
+                             ▼
+            PostgreSQL Warehouse (bronze schema)
+            Raw source tables (1:1 with API)
+                             |
+                             ▼
+                   dbt-core Transformations
+                   Bronze → Silver → Gold
+                             |
+                             ▼
+                  Kestra Orchestration
+            dlt → dbt snapshot → dbt run → dbt test
+                  (every 30 minutes)
+                             |
+                             ▼
+                  Apache Superset (planned)
 ```
 
----
-
-# Tech Stack
-
-| Layer                      | Technology                   |
-| -------------------------- | ---------------------------- |
-| Source System              | FastAPI + PostgreSQL         |
-| Data Ingestion             | dlt                          |
-| Data Warehouse             | PostgreSQL                   |
-| Data Transformation        | dbt-core                     |
-| Data Modeling              | Star Schema                  |
-| Slowly Changing Dimensions | dbt Snapshots (SCD Type 2)   |
-| Fact Loading               | Incremental Merge Models     |
-| Orchestration              | Kestra*(Planned)*          |
-| Business Intelligence      | Apache Superset*(Planned)* |
-| Containerization           | Docker & Docker Compose      |
-
----
-
-# Medallion Architecture
+## Project Structure
 
 ```
-          Bronze
-     Raw Source Tables
-             │
-             ▼
-          Silver
- Cleaned & Standardized
-             │
-             ▼
-            Gold
- Analytics-Ready Models
-```
-
-### Bronze
-
-- Raw source data
-- 1:1 copy of the API
-- Incrementally loaded with dlt
-- Merge write disposition
-- Primary key upserts
-
----
-
-### Silver
-
-- Data cleaning
-- Type casting
-- Renaming
-- Data quality tests
-- Business-friendly models
-- SCD Type 2 snapshots
-
----
-
-### Gold
-
-Analytics-ready star schema including:
-
-Dimensions
-
-- `dim_date`
-- `dim_customers`
-- `dim_sellers`
-- `dim_products` (SCD Type 2)
-
-Facts
-
-- `fct_orders`
-- `fct_order_items`
-- `fct_payments`
-
-All fact tables are built incrementally using merge strategies.
-
----
-
-# Repository Structure
-
-```text
 olist-elt-platform/
-│
-├── api/
-│   ├── README.md
-│   └── FastAPI source system
-│
-├── dlt_pipeline/
-│   ├── README.md
-│   └── Incremental ingestion
-│
-├── dbt_project/
-│   ├── README.md
-│   └── Bronze → Silver → Gold transformations
-│
-└── docker-compose.yml
+├── api/              # FastAPI source service
+├── dlt_pipeline/     # dlt ingestion pipeline
+├── dbt_project/      # dbt transformations
+├── docker-compose.yml
+└── README.md
 ```
 
-Each component is independently containerized and includes its own setup instructions.
+## Tech Stack
 
----
+| Component       | Technology                    |
+|-----------------|-------------------------------|
+| Source API      | FastAPI, SQLAlchemy, Postgres |
+| Ingestion       | dlt (data load tool)          |
+| Transformations | dbt (data build tool)         |
+| Orchestration   | Kestra                        |
+| Visualization   | Apache Superset (planned)     |
+| Package Manager | uv                            |
+| Container       | Docker Compose                |
 
-# Quick Start
+## Quick Start
 
-Start the infrastructure
+### Prerequisites
+
+- Docker & Docker Compose (v2)
+- [Olist CSV files](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) in `api/data/raw/`
+
+### Setup
 
 ```bash
-docker compose up -d --build api_db api warehouse_db
-```
+# 1. Start infrastructure (API + warehouse + Kestra)
+docker compose up -d
 
-Load the Kaggle dataset into the source API
-
-```bash
+# 2. Seed the API database
 docker compose exec api uv run python -m scripts.load_csv_to_db
-```
 
-Run the incremental dlt pipeline
-
-```bash
+# 3. Run ingestion
 docker compose run --rm dlt_pipeline
+
+# 4. Run dbt transformations
+docker compose run --rm dbt build
 ```
 
-Run dbt
+### Access Points
 
-```bash
-cd dbt_project/olist_analytics
+| Service          | URL                              |
+|------------------|----------------------------------|
+| API docs         | http://localhost:8000/docs       |
+| pgAdmin          | http://localhost:5050            |
+| Kestra UI        | http://localhost:8081            |
 
-uv run dbt snapshot
-uv run dbt run
-uv run dbt test
-```
+## Services
 
----
+| Service          | Description                            | Port  |
+|------------------|----------------------------------------|-------|
+| `api`            | FastAPI source with drip-feed          | 8000  |
+| `api_db`         | Postgres — API database                | 5433  |
+| `warehouse_db`   | Postgres — analytics warehouse         | 5434  |
+| `dlt_pipeline`   | dlt ingestion (manual profile)         | —     |
+| `dbt`            | dbt transformations (manual profile)   | —     |
+| `kestra`         | Workflow orchestration                 | 8081  |
+| `kestra_db`      | Postgres — Kestra backend              | —     |
+| `pgadmin`        | Database admin UI                      | 5050  |
 
-# Key Features
+## Orchestration (Kestra)
 
-## Source API
+The complete ELT pipeline runs every **30 minutes**:
 
-- FastAPI
-- PostgreSQL backend
-- Cursor-based pagination
-- Incremental filtering (`updated_at`)
-- Background drip-feed releases
-- Simulated production API
+1. **dlt ingest** — pull new data from the API into bronze schema
+2. **dbt snapshot** — capture SCD Type 2 changes on products
+3. **dbt run** — build silver → gold models incrementally
+4. **dbt test** — validate data quality
 
----
+Each step runs inside an isolated Docker container using Kestra's `docker.Run` task type.
 
-## Data Ingestion
+## dbt Models
 
-- dlt resources
-- Incremental extraction
-- Merge write disposition
-- Primary-key upserts
-- Cursor-based pagination
-- Idempotent loads
+**Staging** (silver schema, views):
+`stg_orders`, `stg_customers`, `stg_sellers`, `stg_products`, `stg_order_items`, `stg_order_payments`, `stg_order_reviews`
 
----
+**Intermediate** (silver schema, view):
+`int_order_details` — denormalized order × items × products × sellers
 
-## Transformations
+**Marts** (gold schema, tables):
 
-- dbt-core
-- Staging models
-- Data quality tests
-- SCD Type 2 snapshots
-- Incremental fact tables
-- Star schema modeling
+| Model              | Type         | Description                          |
+|--------------------|--------------|--------------------------------------|
+| `dim_customers`    | Dimension    | Customer geography                   |
+| `dim_sellers`      | Dimension    | Seller geography                     |
+| `dim_products`     | SCD Type 2   | Product attributes with full history |
+| `dim_date`         | Dimension    | Calendar (2015–2028)                 |
+| `fct_orders`       | Fact (incr)  | Order-level aggregated metrics       |
+| `fct_order_items`  | Fact (incr)  | Line-item-level facts                |
+| `fct_payments`     | Fact (incr)  | Payment-level facts                  |
 
----
+## Design Highlights
 
-# Known Limitations
+- **Drip-feed mechanism**: Rows progressively released so incremental pipelines always find new data
+- **Cursor-based pagination**: Opaque, base64-encoded cursors for reliable incremental extraction
+- **Unique timestamps**: Every row has a unique `updated_at` (offset by microseconds) to avoid dlt dedup blowup
+- **Medallion architecture**: Bronze (raw) → Silver (cleaned) → Gold (analytics-ready)
+- **SCD Type 2**: Product dimension tracks full attribute history via dbt snapshots
+- **Incremental facts**: Fact tables use `is_incremental()` for efficient re-runs
+- **Merge write disposition**: Idempotent dlt ingestion with natural primary keys
 
-### Late-arriving Dimensions
+## Roadmap
 
-The source API intentionally releases historical data independently for each table.
-
-As a result, a fact record may occasionally arrive before its corresponding dimension record.
-
-This behavior is intentional because it mirrors real production systems and demonstrates how analytics pipelines handle late-arriving dimensions.
-
-Additional details are documented in:
-
-```
-dbt_project/olist_analytics/README.md
-```
-
----
-
-# Roadmap
-
-## ✅ Phase 1 — Source API
-
-- FastAPI source system
-- Cursor pagination
-- Incremental filtering
-- Background drip-feed
-
----
-
-## ✅ Phase 2 — Data Ingestion
-
-- dlt pipeline
-- Incremental extraction
-- Merge write disposition
-- Bronze layer
-- Dockerized pipeline
-
----
-
-## ✅ Phase 3 — Data Transformation
-
-- Bronze → Silver → Gold
-- Staging models
-- Data quality tests
-- SCD Type 2 snapshots
-- Incremental fact tables
-- Star schema
-
----
-
-## 🚧 Phase 4 — Orchestration
-
-- Kestra workflows
-- Scheduled ELT
-- Dependency management
-
----
-
-## 🚧 Phase 5 — Business Intelligence
-
-- Apache Superset
-- Interactive dashboards
-- Business KPIs
-
----
-
-## 🚧 Phase 6 — Production Readiness
-
-- GitHub Actions CI/CD
-- Automated testing
-- Documentation
-- Architecture diagrams
-- End-to-end case study
-- Performance optimizations
-
----
-
-# Project Goals
-
-This project demonstrates production-grade analytics engineering concepts including:
-
-- Building a realistic source system
-- Incremental ELT pipelines
-- Cursor-based APIs
-- Change-aware ingestion
-- Medallion Architecture
-- Dimensional modeling
-- Slowly Changing Dimensions (SCD Type 2)
-- Incremental fact loading
-- Data quality testing
-- Containerized development
-- End-to-end analytics engineering
+- [x] Phase 1 — Source API (cursor pagination, incremental filtering, drip-feed)
+- [x] Phase 2 — dlt ingestion (incremental, merge, bronze schema)
+- [x] Phase 3 — dbt transformations (medallion, SCD2, star schema, incremental facts, tests)
+- [x] Phase 4 — Kestra orchestration (scheduled pipeline every 30 min)
+- [ ] Phase 5 — Apache Superset dashboards
+- [ ] Phase 6 — CI/CD and polish

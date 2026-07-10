@@ -51,7 +51,7 @@ Then run directly:
 uv run python run_pipeline.py
 ```
 
-### Containerized (matches how Kestra will invoke this in Phase 4)
+### Containerized (matches how Kestra invokes this)
 
 Config is set to `api:8000` / `warehouse_db:5432` by default — this is
 the intended way to run the pipeline.
