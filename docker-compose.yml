@@ -71,7 +71,68 @@ services:
       warehouse_db:
         condition: service_healthy
 
+  kestra_db:
+    image: postgres:16
+    container_name: olist_kestra_db
+    environment:
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: kestra
+      POSTGRES_DB: kestra
+    volumes:
+      - kestra_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestra -d kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kestra:
+    image: kestra/kestra:latest
+    container_name: olist_kestra
+    user: "0:0"
+    depends_on:
+      kestra_db:
+        condition: service_healthy
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra_db:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: kestra
+        kestra:
+          server:
+            basicAuth:
+              enabled: false
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+          queue:
+            type: postgres
+    volumes:
+      - kestra_data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8081:8080"
+    command: server standalone
+
+
+  dbt:
+    build: ./dbt_project
+    container_name: olist_dbt
+    depends_on:
+      warehouse_db:
+        condition: service_healthy
+    profiles: ["manual"]
+
+
 volumes:
   api_db_data:
   warehouse_db_data:
   pgadmin_data:
+  kestra_db_data:
+  kestra_data:

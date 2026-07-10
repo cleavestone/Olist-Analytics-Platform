@@ -1,7 +1,14 @@
 FROM python:3.11-slim
 
-RUN pip install --default-timeout=3600 --no-cache-dir "dbt-core>=1.11.12" "dbt-postgres>=1.10.2"
-
 WORKDIR /app
 
-ENTRYPOINT ["dbt"]
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv
+
+COPY pyproject.toml uv.lock* .
+RUN uv sync --no-dev
+
+COPY . .
+
+ENV DBT_PROFILES_DIR=/app
+WORKDIR /app/olist_analytics

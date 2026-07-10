@@ -1,0 +1,12 @@
+olist_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: warehouse_db
+      port: 5432
+      user: warehouse
+      pass: warehouse
+      dbname: olist_warehouse
+      schema: dbt_dev
+      threads: 4
